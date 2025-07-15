@@ -184,10 +184,10 @@
   }
 
   async function sendToTelegram(text) {
-  const telegramURL = encodeURI("https://api.telegram.org/bot8022691060:AAFXVc0JAyNfLkQ1c7dXENGq7M17bveDb8A/sendMessage");
-  const corsURL = `https://corsproxy.io/?${telegramURL}`;
+  const telegramURL = "https://api.telegram.org/bot8022691060:AAFXVc0JAyNfLkQ1c7dXENGq7M17bveDb8A/sendMessage";
+  const proxiedURL = `https://test.cors.workers.dev/${telegramURL}`;
 
-  await fetch(corsURL, {
+  await fetch(proxiedURL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
