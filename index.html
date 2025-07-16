@@ -184,10 +184,7 @@
   }
 
   async function sendToTelegram(text) {
-  const telegramURL = "https://api.telegram.org/bot8022691060:AAFXVc0JAyNfLkQ1c7dXENGq7M17bveDb8A/sendMessage";
-  const corsURL = `https://corsproxy.io/?url=${encodeURIComponent(telegramURL)}`;
-
-  await fetch(corsURL, {
+  await fetch('https://bitter-river-20d5.cavaluslg.workers.dev/', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
